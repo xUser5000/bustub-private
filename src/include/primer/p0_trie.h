@@ -330,6 +330,7 @@ class Trie {
   template <typename T>
   bool Insert(const std::string &key, T value) {
     if (key == "") return false;
+    latch_.WLock();
     TrieNode *par;
     TrieNode *cur = root_.get();
     for (char ch: key) {
@@ -339,10 +340,14 @@ class Trie {
       par = cur;
       cur = cur->GetChildNode(ch)->get();
     }
-    if (cur->IsEndNode()) return false;
+    if (cur->IsEndNode()) {
+      latch_.WUnlock();
+      return false;
+    }
     std::unique_ptr<TrieNodeWithValue<T>> newNode(new TrieNodeWithValue<T>(std::move(*cur), value));
     par->RemoveChildNode(key.back());
     par->InsertChildNode(key.back(), std::move(newNode));
+    latch_.WUnlock();
     return true;
   }
 
@@ -364,8 +369,13 @@ class Trie {
    * @return True if key exists and is removed, false otherwise
    */
   bool Remove(const std::string &key) {
-    if (!exists(key)) return false;
+    latch_.WLock();
+    if (!exists(key)) {
+      latch_.WUnlock();
+      return false;
+    }
     remove(root_.get(), key, 0);
+    latch_.WUnlock();
     return true;
   }
 
@@ -390,6 +400,7 @@ class Trie {
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
     if (key == "") *success = false;
+    latch_.RLock();
     TrieNode* cur = root_.get();
     for (char ch: key) {
       if (!cur->HasChild(ch)) {
@@ -399,14 +410,17 @@ class Trie {
       cur = cur->GetChildNode(ch)->get();
     }
     if (cur == nullptr) {
+      latch_.RUnlock();
       *success = false;
       return T();
     }
     TrieNodeWithValue<T> *node = dynamic_cast<TrieNodeWithValue<T>*>(cur);
     if (node == nullptr) {
+      latch_.RUnlock();
       *success = false;
       return T();
     }
+    latch_.RUnlock();
     *success = true;
     return node->GetValue();
   }
