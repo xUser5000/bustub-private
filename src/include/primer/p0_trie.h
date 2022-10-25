@@ -375,8 +375,26 @@ class Trie {
    */
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
-    *success = false;
-    return {};
+    if (key == "") *success = false;
+    TrieNode* cur = root_.get();
+    for (char ch: key) {
+      if (!cur->HasChild(ch)) {
+        cur = nullptr;
+        break;
+      }
+      cur = cur->GetChildNode(ch)->get();
+    }
+    if (cur == nullptr) {
+      *success = false;
+      return T();
+    }
+    TrieNodeWithValue<T> *node = dynamic_cast<TrieNodeWithValue<T>*>(cur);
+    if (node == nullptr) {
+      *success = false;
+      return T();
+    }
+    *success = true;
+    return node->GetValue();
   }
 };
 }  // namespace bustub
