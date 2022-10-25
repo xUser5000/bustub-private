@@ -266,6 +266,30 @@ class Trie {
   /* Read-write lock for the trie */
   ReaderWriterLatch latch_;
 
+  bool exists(std::string key) {
+    if (key == "") return false;
+    TrieNode* cur = root_.get();
+    for (char ch: key) {
+      if (!cur->HasChild(ch)) {
+        cur = nullptr;
+        break;
+      }
+      cur = cur->GetChildNode(ch)->get();
+    }
+    return cur != nullptr;
+  }
+
+  bool remove(TrieNode* node, const std::string &key, int idx) {
+    if (idx == (int) key.size()) {
+      node->SetEndNode(false);
+      return !node->HasChildren();
+    }
+    TrieNode* child = node->GetChildNode(key[idx])->get();
+    bool toBeRemoved = remove(child, key, idx + 1);
+    if (toBeRemoved) node->RemoveChildNode(key[idx]);
+    return !node->HasChildren();
+  }
+
  public:
   /**
    * TODO(P0): Add implementation
@@ -273,7 +297,9 @@ class Trie {
    * @brief Construct a new Trie object. Initialize the root node with '\0'
    * character.
    */
-  Trie() = default;
+  Trie() {
+    root_ = std::make_unique<TrieNode>('\0');
+  }
 
   /**
    * TODO(P0): Add implementation
@@ -323,7 +349,11 @@ class Trie {
    * @param key Key used to traverse the trie and find correct node
    * @return True if key exists and is removed, false otherwise
    */
-  bool Remove(const std::string &key) { return false; }
+  bool Remove(const std::string &key) {
+    if (!exists(key)) return false;
+    remove(root_.get(), key, 0);
+    return true;
+  }
 
   /**
    * TODO(P0): Add implementation
