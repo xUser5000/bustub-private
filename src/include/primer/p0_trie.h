@@ -329,7 +329,21 @@ class Trie {
    */
   template <typename T>
   bool Insert(const std::string &key, T value) {
-    return false;
+    if (key == "") return false;
+    TrieNode *par;
+    TrieNode *cur = root_.get();
+    for (char ch: key) {
+      if (!cur->HasChild(ch)) {
+        cur->InsertChildNode(ch, std::move(std::make_unique<TrieNode>(ch)));
+      }
+      par = cur;
+      cur = cur->GetChildNode(ch)->get();
+    }
+    if (cur->IsEndNode()) return false;
+    std::unique_ptr<TrieNodeWithValue<T>> newNode(new TrieNodeWithValue<T>(std::move(*cur), value));
+    par->RemoveChildNode(key.back());
+    par->InsertChildNode(key.back(), std::move(newNode));
+    return true;
   }
 
   /**
