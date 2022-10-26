@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "common/exception.h"
-#include "common/rwlatch.h"
 #include "common/logger.h"
+#include "common/rwlatch.h"
 
 namespace bustub {
 
@@ -30,9 +30,7 @@ namespace bustub {
  */
 class TrieNode {
  public:
-  TrieNode() {
-
-  }
+  TrieNode() {}
   /**
    * TODO(P0): Add implementation
    *
@@ -56,7 +54,7 @@ class TrieNode {
    */
   TrieNode(TrieNode &&other_trie_node) noexcept {
     other_trie_node.key_char_ = key_char_;
-    for (auto &p: children_) {
+    for (auto &p : children_) {
       other_trie_node.children_[p.first] = std::move(p.second);
     }
   }
@@ -77,9 +75,7 @@ class TrieNode {
    * @param key_char Key char of child node.
    * @return True if this trie node has a child with given key, false otherwise.
    */
-  bool HasChild(char key_char) const {
-    return children_.count(key_char);
-  }
+  bool HasChild(char key_char) const { return children_.count(key_char); }
 
   /**
    * TODO(P0): Add implementation
@@ -170,9 +166,7 @@ class TrieNode {
    *
    * @param is_end Whether this trie node is ending char of a key string
    */
-  void SetEndNode(bool is_end) {
-    is_end_ = is_end;
-  }
+  void SetEndNode(bool is_end) { is_end_ = is_end; }
 
  protected:
   /** Key character of this trie node */
@@ -237,7 +231,7 @@ class TrieNodeWithValue : public TrieNode {
    * @param key_char Key char of this node
    * @param value Value of this node
    */
-  TrieNodeWithValue(char key_char, T value): TrieNode(key_char) {
+  TrieNodeWithValue(char key_char, T value) : TrieNode(key_char) {
     value_ = value;
     is_end_ = true;
   }
@@ -268,8 +262,8 @@ class Trie {
 
   bool exists(std::string key) {
     if (key == "") return false;
-    TrieNode* cur = root_.get();
-    for (char ch: key) {
+    TrieNode *cur = root_.get();
+    for (char ch : key) {
       if (!cur->HasChild(ch)) {
         cur = nullptr;
         break;
@@ -279,12 +273,12 @@ class Trie {
     return cur != nullptr;
   }
 
-  bool remove(TrieNode* node, const std::string &key, int idx) {
-    if (idx == (int) key.size()) {
+  bool remove(TrieNode *node, const std::string &key, int idx) {
+    if (idx == (int)key.size()) {
       node->SetEndNode(false);
       return !node->HasChildren();
     }
-    TrieNode* child = node->GetChildNode(key[idx])->get();
+    TrieNode *child = node->GetChildNode(key[idx])->get();
     bool toBeRemoved = remove(child, key, idx + 1);
     if (toBeRemoved) node->RemoveChildNode(key[idx]);
     return !node->HasChildren();
@@ -297,9 +291,7 @@ class Trie {
    * @brief Construct a new Trie object. Initialize the root node with '\0'
    * character.
    */
-  Trie() {
-    root_ = std::make_unique<TrieNode>('\0');
-  }
+  Trie() { root_ = std::make_unique<TrieNode>('\0'); }
 
   /**
    * TODO(P0): Add implementation
@@ -333,7 +325,7 @@ class Trie {
     latch_.WLock();
     TrieNode *par;
     TrieNode *cur = root_.get();
-    for (char ch: key) {
+    for (char ch : key) {
       if (!cur->HasChild(ch)) {
         cur->InsertChildNode(ch, std::move(std::make_unique<TrieNode>(ch)));
       }
@@ -401,8 +393,8 @@ class Trie {
   T GetValue(const std::string &key, bool *success) {
     if (key == "") *success = false;
     latch_.RLock();
-    TrieNode* cur = root_.get();
-    for (char ch: key) {
+    TrieNode *cur = root_.get();
+    for (char ch : key) {
       if (!cur->HasChild(ch)) {
         cur = nullptr;
         break;
@@ -414,7 +406,7 @@ class Trie {
       *success = false;
       return T();
     }
-    TrieNodeWithValue<T> *node = dynamic_cast<TrieNodeWithValue<T>*>(cur);
+    TrieNodeWithValue<T> *node = dynamic_cast<TrieNodeWithValue<T> *>(cur);
     if (node == nullptr) {
       latch_.RUnlock();
       *success = false;
