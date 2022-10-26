@@ -65,7 +65,7 @@ class TrieNode {
   virtual ~TrieNode() {
     key_char_ = 0;
     children_.clear();
-  };
+  }
 
   /**
    * TODO(P0): Add implementation
@@ -274,7 +274,7 @@ class Trie {
   }
 
   bool remove(TrieNode *node, const std::string &key, int idx) {
-    if (idx == (int)key.size()) {
+    if (idx == static_cast<int>(key.size())) {
       node->SetEndNode(false);
       return !node->HasChildren();
     }
