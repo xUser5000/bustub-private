@@ -30,7 +30,6 @@ namespace bustub {
  */
 class TrieNode {
  public:
-  TrieNode() = default;
   /**
    * TODO(P0): Add implementation
    *
@@ -53,19 +52,18 @@ class TrieNode {
    * @param other_trie_node Old trie node.
    */
   TrieNode(TrieNode &&other_trie_node) noexcept {
-    other_trie_node.key_char_ = key_char_;
-    for (auto &p : children_) {
-      other_trie_node.children_[p.first] = std::move(p.second);
+    key_char_ = other_trie_node.key_char_;
+    for (auto &p : other_trie_node.children_) {
+      children_[p.first] = std::move(p.second);
     }
+    other_trie_node.children_.clear();
+    other_trie_node.key_char_ = '\0';
   }
 
   /**
    * @brief Destroy the TrieNode object.
    */
-  virtual ~TrieNode() {
-    key_char_ = 0;
-    children_.clear();
-  }
+  virtual ~TrieNode() { children_.clear(); }
 
   /**
    * TODO(P0): Add implementation
@@ -75,7 +73,7 @@ class TrieNode {
    * @param key_char Key char of child node.
    * @return True if this trie node has a child with given key, false otherwise.
    */
-  auto HasChild(char key_char) const { return children_.find(key_char) != children_.end(); }
+  auto HasChild(char key_char) -> bool { return children_.find(key_char) != children_.end(); }
 
   /**
    * TODO(P0): Add implementation
@@ -85,7 +83,7 @@ class TrieNode {
    *
    * @return True if this trie node has any child node, false if it has no child node.
    */
-  auto HasChildren() const { return !children_.empty(); }
+  auto HasChildren() -> bool { return !children_.empty(); }
 
   /**
    * TODO(P0): Add implementation
@@ -94,7 +92,7 @@ class TrieNode {
    *
    * @return True if is_end_ flag is true, false if is_end_ is false.
    */
-  auto IsEndNode() const { return is_end_; }
+  auto IsEndNode() -> bool { return is_end_; }
 
   /**
    * TODO(P0): Add implementation
@@ -103,7 +101,7 @@ class TrieNode {
    *
    * @return key_char_ of this trie node.
    */
-  auto GetKeyChar() const { return key_char_; }
+  auto GetKeyChar() -> char { return key_char_; }
 
   /**
    * TODO(P0): Add implementation
@@ -215,13 +213,7 @@ class TrieNodeWithValue : public TrieNode {
    * @param trieNode TrieNode whose data is to be moved to TrieNodeWithValue
    * @param value
    */
-  TrieNodeWithValue(TrieNode &&trieNode, T value) {
-    key_char_ = trieNode.GetKeyChar();
-    for (char ch = 'a'; ch <= 'z'; ch++) {
-      if (trieNode.HasChild(ch)) {
-        children_[ch] = std::move(*trieNode.GetChildNode(ch));
-      }
-    }
+  TrieNodeWithValue(TrieNode &&trieNode, T value) : TrieNode(std::move(trieNode)) {
     value_ = value;
     is_end_ = true;
   }
@@ -291,7 +283,7 @@ class Trie {
     TrieNode *child = node->GetChildNode(key[idx])->get();
     bool to_be_removed = RemoveNode(child, key, idx + 1);
     if (to_be_removed) {
-      node->RemoveChildNode(key[idx]);
+      node->RemoveChildNode(child->GetKeyChar());
     }
     return !node->HasChildren();
   }
