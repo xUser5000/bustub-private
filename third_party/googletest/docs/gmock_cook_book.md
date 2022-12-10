@@ -86,7 +86,7 @@ You must always put a mock method definition (`MOCK_METHOD`) in a `public:`
 section of the mock class, regardless of the method being mocked being `public`,
 `protected`, or `private` in the base class. This allows `ON_CALL` and
 `EXPECT_CALL` to reference the mock function from outside of the mock class.
-(Yes, C++ allows a subclass to change the access level of a virtual function in
+(Yes, C++ allows a subclass to change the access_ level of a virtual function in
 the base class.) Example:
 
 ```cpp
@@ -2718,7 +2718,7 @@ enum class AccessLevel { kInternal, kPublic };
 
 class Buzz {
  public:
-  explicit Buzz(AccessLevel access) { ... }
+  explicit Buzz(AccessLevel access_) { ... }
   ...
 };
 

@@ -1089,7 +1089,7 @@ other			.
 /* LCOV_EXCL_STOP */
 
 /*
- * Arrange access to yyextra for subroutines of the main yylex() function.
+ * Arrange access_ to yyextra for subroutines of the main yylex() function.
  * We expect each subroutine to have a yyscanner parameter.  Rather than
  * use the yyget_xxx functions, which might or might not get inlined by the
  * compiler, we cheat just a bit and cast yyscanner to the right type.

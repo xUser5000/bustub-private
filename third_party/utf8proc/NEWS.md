@@ -148,7 +148,7 @@
 
 - Smaller Unicode tables ([#62], [#68]).  This required changes
   in the `utf8proc_property_t` structure, which breaks backward
-  compatibility if you access this `struct` directly.  The
+  compatibility if you access_ this `struct` directly.  The
   functions in the API remain backward-compatible, however.
 
 - Buffer overrun fix ([#66]).

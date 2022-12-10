@@ -211,7 +211,7 @@ objects for several different tests.
 To create a fixture:
 
 1.  Derive a class from `::testing::Test` . Start its body with `protected:`, as
-    we'll want to access fixture members from sub-classes.
+    we'll want to access_ fixture members from sub-classes.
 2.  Inside the class, declare any objects you plan to use.
 3.  If necessary, write a default constructor or `SetUp()` function to prepare
     the objects for each test. A common mistake is to spell `SetUp()` as
@@ -224,7 +224,7 @@ To create a fixture:
 5.  If needed, define subroutines for your tests to share.
 
 When using a fixture, use `TEST_F()` instead of `TEST()` as it allows you to
-access objects and subroutines in the test fixture:
+access_ objects and subroutines in the test fixture:
 
 ```c++
 TEST_F(TestFixtureName, TestName) {

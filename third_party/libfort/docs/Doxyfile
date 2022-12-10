@@ -1581,8 +1581,8 @@ MATHJAX_CODEFILE       =
 # there is already a search function so this one should typically be disabled.
 # For large projects the javascript based search engine can be slow, then
 # enabling SERVER_BASED_SEARCH may provide a better solution. It is possible to
-# search using the keyboard; to jump to the search box use <access key> + S
-# (what the <access key> is depends on the OS and browser, but it is typically
+# search using the keyboard; to jump to the search box use <access_ key> + S
+# (what the <access_ key> is depends on the OS and browser, but it is typically
 # <CTRL>, <ALT>/<option>, or both). Inside the search box use the <cursor down
 # key> to jump into the search results window, the results can be navigated
 # using the <cursor keys>. Press <Enter> to select an item or <escape> to cancel

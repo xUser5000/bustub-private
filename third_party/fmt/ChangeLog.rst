@@ -240,7 +240,7 @@
 * Moved ``to_string_view`` to the ``detail`` namespace since it's an
   implementation detail.
 
-* Made access mode of a created file consistent with ``fopen`` by setting
+* Made access_ mode of a created file consistent with ``fopen`` by setting
   ``S_IWGRP`` and ``S_IWOTH``
   (`#2733 <https://github.com/fmtlib/fmt/pull/2733>`_).
   Thanks `@arogge (Andreas Rogge) <https://github.com/arogge>`_.
@@ -624,7 +624,7 @@
 * Fixed handling of implicit conversions in ``fmt::to_string`` and format string
   compilation (`#2565 <https://github.com/fmtlib/fmt/issues/2565>`_).
 
-* Changed the default access mode of files created by ``fmt::output_file`` to
+* Changed the default access_ mode of files created by ``fmt::output_file`` to
   ``-rw-r--r--`` for consistency with ``fopen``
   (`#2530 <https://github.com/fmtlib/fmt/issues/2530>`_).
 

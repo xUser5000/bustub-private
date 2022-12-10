@@ -758,7 +758,7 @@ contexts:
                 - match: (?=\S) # safety pop
                   pop: true
             - include: expressions
-    # Explicit base-class access
+    # Explicit base-class access_
     - match: ({{identifier}})\s*(::)
       captures:
         1: variable.other.base-class.c++
@@ -770,7 +770,7 @@ contexts:
       pop: true
 
   members-dot:
-    - include: scope:source.c#access-illegal
+    - include: scope:source.c#access_-illegal
     # No lookahead required because members-dot goes after operators in the
     # early-expressions-after-generic-type context. This means triple dots
     # (i.e. "..." or "variadic") is attempted first.

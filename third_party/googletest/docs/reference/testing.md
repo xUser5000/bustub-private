@@ -297,7 +297,7 @@ For more information, see
 `FRIEND_TEST(`*`TestSuiteName`*`,`*`TestName`*`)`
 
 Within a class body, declares an individual test as a friend of the class,
-enabling the test to access private class members.
+enabling the test to access_ private class members.
 
 If the class is defined in a namespace, then in order to be friends of the
 class, test fixtures and tests must be defined in the exact same namespace,

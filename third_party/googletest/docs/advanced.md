@@ -894,7 +894,7 @@ state to its original value before passing control to the next test.
 
 Note that `SetUpTestSuite()` may be called multiple times for a test fixture
 class that has derived classes, so you should not expect code in the function
-body to be run only once. Also, derived classes still have access to shared
+body to be run only once. Also, derived classes still have access_ to shared
 resources defined as static members, so careful consideration is needed when
 managing shared resources to avoid memory leaks.
 
@@ -1039,7 +1039,7 @@ they must be declared **public** rather than **protected** in order to use
 class FooTest :
     public testing::TestWithParam<const char*> {
   // You can implement all the usual fixture class members here.
-  // To access the test parameter, call GetParam() from class
+  // To access_ the test parameter, call GetParam() from class
   // TestWithParam<T>.
 };
 
@@ -1059,7 +1059,7 @@ prefer to think.
 
 ```c++
 TEST_P(FooTest, DoesBlah) {
-  // Inside a test, access the test parameter with the GetParam() method
+  // Inside a test, access_ the test parameter with the GetParam() method
   // of the TestWithParam<T> class:
   EXPECT_TRUE(foo.Blah(GetParam()));
   ...
@@ -1411,9 +1411,9 @@ To test them, we use the following special techniques:
     internal implementation without leaking it to your clients.
 
 *   Private class members are only accessible from within the class or by
-    friends. To access a class' private members, you can declare your test
+    friends. To access_ a class' private members, you can declare your test
     fixture as a friend to the class and define accessors in your fixture. Tests
-    using the fixture can then access the private members of your production
+    using the fixture can then access_ the private members of your production
     class via the accessors in the fixture. Note that even though your fixture
     is a friend to your production class, your tests are not automatically
     friends to it, as they are technically defined in sub-classes of the

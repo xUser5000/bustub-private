@@ -52,7 +52,7 @@ class LRUKReplacer {
    *
    * @brief Destroys the LRUReplacer.
    */
-  ~LRUKReplacer() = default;
+  ~LRUKReplacer();
 
   /**
    * TODO(P1): Add implementation
@@ -133,12 +133,18 @@ class LRUKReplacer {
   auto Size() -> size_t;
 
  private:
+  auto IsValidFrameId(frame_id_t frame_id) -> bool;
+  void RemoveInternal(frame_id_t frame_id);
+
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  [[maybe_unused]] size_t current_timestamp_{0};
-  [[maybe_unused]] size_t curr_size_{0};
-  [[maybe_unused]] size_t replacer_size_;
-  [[maybe_unused]] size_t k_;
+  size_t current_timestamp_{0};
+  size_t curr_size_{0};
+  size_t replacer_size_;
+  size_t k_;
+  std::vector<std::list<size_t>> history_;
+  std::vector<bool> allocated_;
+  std::vector<bool> evictable_;
   std::mutex latch_;
 };
 

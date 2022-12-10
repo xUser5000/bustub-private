@@ -128,7 +128,7 @@ From the repository directory, run this command to create and start a Vagrant bo
 $ vagrant up
 ```
 
-This will start a Vagrant box running Ubuntu 20.02 in the background with all the packages needed. To access it, type
+This will start a Vagrant box running Ubuntu 20.02 in the background with all the packages needed. To access_ it, type
 
 ```
 $ vagrant ssh
