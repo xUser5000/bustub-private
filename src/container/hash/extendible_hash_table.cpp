@@ -36,7 +36,6 @@ auto ExtendibleHashTable<K, V>::IndexOf(const K &key) -> size_t {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::GetGlobalDepth() const -> int {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "GetGlobalDepth()" << '\n';
   return GetGlobalDepthInternal();
 }
 
@@ -48,7 +47,6 @@ auto ExtendibleHashTable<K, V>::GetGlobalDepthInternal() const -> int {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::GetLocalDepth(int dir_index) const -> int {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "GetLocalDepth()" << '\n';
   return GetLocalDepthInternal(dir_index);
 }
 
@@ -60,7 +58,6 @@ auto ExtendibleHashTable<K, V>::GetLocalDepthInternal(int dir_index) const -> in
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::GetNumBuckets() const -> int {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "GetNumBuckets()" << '\n';
   return GetNumBucketsInternal();
 }
 
@@ -72,7 +69,6 @@ auto ExtendibleHashTable<K, V>::GetNumBucketsInternal() const -> int {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "Find " << key << '\n';
   size_t index = IndexOf(key);
   return dir_[index]->Find(key, value);
 }
@@ -80,7 +76,6 @@ auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "Remove " << key << '\n';
   size_t index = IndexOf(key);
   return dir_[index]->Remove(key);
 }
@@ -88,7 +83,6 @@ auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
 template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "Insert " << key << '\n';
   InsertInternal(key, value);
 }
 
