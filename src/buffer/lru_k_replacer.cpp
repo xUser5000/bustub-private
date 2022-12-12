@@ -15,17 +15,17 @@
 namespace bustub {
 
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {
-  std::scoped_lock lock(latch_);
   history_.resize(num_frames);
   allocated_.resize(num_frames);
   evictable_.resize(num_frames);
 }
 
 LRUKReplacer::~LRUKReplacer() {
-  std::scoped_lock lock(latch_);
   history_.clear();
   allocated_.clear();
   evictable_.clear();
+  complete_histories_.clear();
+  incomplete_histories_.clear();
 }
 
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
@@ -33,34 +33,11 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   if (curr_size_ == 0) {
     return false;
   }
-  frame_id_t id = 1e9;
-  size_t highest_diff = 0;
-  for (size_t i = 0; i < replacer_size_; i++) {
-    if (!allocated_[i] || !evictable_[i]) {
-      continue;
-    }
-    if (history_[i].size() == k_) {
-      size_t diff = current_timestamp_ - history_[i].back();
-      if (diff > highest_diff) {
-        highest_diff = diff;
-        id = i;
-      }
-    } else {
-      highest_diff = 1e9;
-      break;
-    }
-  }
-  if (highest_diff == 1e9) {
-    size_t earliest_time = current_timestamp_;
-    for (size_t i = 0; i < replacer_size_; i++) {
-      if (!allocated_[i] || !evictable_[i] || history_[i].size() == k_) {
-        continue;
-      }
-      if (history_[i].back() < earliest_time) {
-        earliest_time = history_[i].back();
-        id = i;
-      }
-    }
+  frame_id_t id;
+  if (!incomplete_histories_.empty()) {
+    id = incomplete_histories_.begin()->second;
+  } else {
+    id = complete_histories_.begin()->second;
   }
   *frame_id = id;
   RemoveInternal(id);
@@ -77,8 +54,24 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
     evictable_[frame_id] = false;
   }
   history_[frame_id].push_front(current_timestamp_++);
-  if (history_[frame_id].size() > k_) {
-    history_[frame_id].pop_back();
+
+  if (evictable_[frame_id]) {
+    if (history_[frame_id].size() > k_) {
+      complete_histories_.erase(history_[frame_id].back());
+      history_[frame_id].pop_back();
+      complete_histories_[history_[frame_id].back()] = frame_id;
+    } else if (history_[frame_id].size() == k_) {
+      if (history_[frame_id].size() > 1) {
+        incomplete_histories_.erase(history_[frame_id].back());
+      }
+      complete_histories_[history_[frame_id].back()] = frame_id;
+    } else {
+      incomplete_histories_[history_[frame_id].back()] = frame_id;
+    }
+  } else {
+    if (history_[frame_id].size() > k_) {
+      history_[frame_id].pop_back();
+    }
   }
 }
 
@@ -92,9 +85,20 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   }
   if (!evictable_[frame_id] && set_evictable) {
     curr_size_++;
+    if (history_[frame_id].size() == k_) {
+      complete_histories_[history_[frame_id].back()] = frame_id;
+    } else {
+      incomplete_histories_[history_[frame_id].back()] = frame_id;
+    }
   }
   if (evictable_[frame_id] && !set_evictable) {
     curr_size_--;
+    if (complete_histories_.find(history_[frame_id].back()) != complete_histories_.end()) {
+      complete_histories_.erase(history_[frame_id].back());
+    }
+    if (incomplete_histories_.find(history_[frame_id].back()) != incomplete_histories_.end()) {
+      incomplete_histories_.erase(history_[frame_id].back());
+    }
   }
   evictable_[frame_id] = set_evictable;
 }
@@ -111,6 +115,12 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
 }
 
 void LRUKReplacer::RemoveInternal(frame_id_t frame_id) {
+  if (complete_histories_.find(history_[frame_id].back()) != complete_histories_.end()) {
+    complete_histories_.erase(history_[frame_id].back());
+  }
+  if (incomplete_histories_.find(history_[frame_id].back()) != incomplete_histories_.end()) {
+    incomplete_histories_.erase(history_[frame_id].back());
+  }
   history_[frame_id].clear();
   evictable_[frame_id] = false;
   allocated_[frame_id] = false;

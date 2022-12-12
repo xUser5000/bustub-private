@@ -14,6 +14,7 @@
 
 #include <limits>
 #include <list>
+#include <map>
 #include <mutex>  // NOLINT
 #include <unordered_map>
 #include <vector>
@@ -54,7 +55,7 @@ class LRUKReplacer {
    */
   ~LRUKReplacer();
 
-  /**
+  /**3
    * TODO(P1): Add implementation
    *
    * @brief Find the frame with largest backward k-distance and evict that frame. Only frames
@@ -145,6 +146,8 @@ class LRUKReplacer {
   std::vector<std::list<size_t>> history_;
   std::vector<bool> allocated_;
   std::vector<bool> evictable_;
+  std::map<int, int> complete_histories_;
+  std::map<int, int> incomplete_histories_;
   std::mutex latch_;
 };
 
