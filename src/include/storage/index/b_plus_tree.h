@@ -75,6 +75,10 @@ class BPlusTree {
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
 
  private:
+  auto InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value, Transaction *transaction) -> bool;
+  auto GetValueInternal(page_id_t page_id, const KeyType &key, std::vector<ValueType> *result,
+                        Transaction *transaction = nullptr) -> bool;
+
   void UpdateRootPageId(int insert_record = 0);
 
   /* Debug Routines for FREE!! */
@@ -89,6 +93,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  int cur_size_;
 };
 
 }  // namespace bustub

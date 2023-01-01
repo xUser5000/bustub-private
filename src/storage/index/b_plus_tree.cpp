@@ -15,13 +15,14 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
       buffer_pool_manager_(buffer_pool_manager),
       comparator_(comparator),
       leaf_max_size_(leaf_max_size),
-      internal_max_size_(internal_max_size) {}
+      internal_max_size_(internal_max_size),
+      cur_size_(0) {}
 
 /*
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return cur_size_ == 0; }
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -32,6 +33,27 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
+  if (root_page_id_ == INVALID_PAGE_ID) {
+    return false;
+  }
+  return GetValueInternal(root_page_id_, key, result, transaction);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTree<KeyType, ValueType, KeyComparator>::GetValueInternal(page_id_t page_id, const KeyType &key,
+                                                                    std::vector<ValueType> *result,
+                                                                    Transaction *transaction) -> bool {
+  auto *cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id));
+  if (cur_generic_page->IsLeafPage()) {
+    auto *cur_leaf_page = reinterpret_cast<LeafPage *>(cur_generic_page);
+    for (int i = 0; i < cur_leaf_page->GetSize(); i++) {
+      if (comparator_(key, cur_leaf_page->KeyAt(i)) == 0) {
+        result->push_back(cur_leaf_page->NodeAt(i)->second);
+        return true;
+      }
+    }
+    return false;
+  }
   return false;
 }
 
@@ -47,6 +69,49 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
+  if (root_page_id_ == INVALID_PAGE_ID) {
+    auto root_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
+    UpdateRootPageId(root_page_id_);
+    root_page->Init(root_page_id_, INVALID_PAGE_ID, leaf_max_size_);
+  }
+  InsertInternal(root_page_id_, key, value, transaction);
+  cur_size_++;
+  return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value,
+                                    Transaction *transaction) -> bool {
+  auto *cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id));
+  if (cur_generic_page->IsLeafPage()) {
+    auto *cur_leaf_page = reinterpret_cast<LeafPage *>(cur_generic_page);
+    int index;
+    for (index = 0; index < cur_leaf_page->GetSize(); index++) {
+      if (comparator_(key, cur_leaf_page->KeyAt(index)) == 0) {
+        return false;
+      }
+      if (comparator_(key, cur_leaf_page->KeyAt(index)) < 0) {
+        break;
+      }
+    }
+    for (int i = cur_leaf_page->GetSize(); i > index; i--) {
+      cur_leaf_page->NodeAt(i)->first = cur_leaf_page->NodeAt(i - 1)->first;
+      cur_leaf_page->NodeAt(i)->second = cur_leaf_page->NodeAt(i - 1)->second;
+    }
+    cur_leaf_page->NodeAt(index)->first = key;
+    cur_leaf_page->NodeAt(index)->second = value;
+    cur_leaf_page->IncreaseSize(1);
+    return cur_leaf_page->GetSize() != cur_leaf_page->GetMaxSize();
+  }
+  auto *cur_internal_page = reinterpret_cast<InternalPage *>(cur_generic_page);
+  int index;
+  for (index = cur_internal_page->GetSize() - 1; index >= 1; index--) {
+    if (comparator_(key, cur_internal_page->KeyAt(index)) < 0) {
+      continue;
+    }
+    break;
+  }
+  //  bool res = InsertInternal(cur_internal_page->ValueAt(index), key, value, transaction);
   return false;
 }
 
@@ -94,7 +159,7 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); 
  * @return Page id of the root of this tree
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return 0; }
+auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return root_page_id_; }
 
 /*****************************************************************************
  * UTILITIES AND DEBUG
