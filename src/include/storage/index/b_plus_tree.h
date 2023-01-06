@@ -99,6 +99,10 @@ class BPlusTree {
 
   auto RemoveFromLeaf(LeafPage *page, const KeyType &key) -> bool;
 
+  auto BeginInternal(page_id_t cur_page_id) -> INDEXITERATOR_TYPE;
+
+  auto BeginInternal(page_id_t cur_page_id, const KeyType &key) -> INDEXITERATOR_TYPE;
+
   void UpdateRootPageId(int insert_record = 0);
 
   /* Debug Routines for FREE!! */
