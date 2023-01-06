@@ -12,6 +12,7 @@
 
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "concurrency/transaction.h"
@@ -75,9 +76,28 @@ class BPlusTree {
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
 
  private:
-  auto InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value, Transaction *transaction) -> bool;
   auto GetValueInternal(page_id_t page_id, const KeyType &key, std::vector<ValueType> *result,
                         Transaction *transaction = nullptr) -> bool;
+
+  auto InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value, Transaction *transaction) -> bool;
+
+  auto InsertIntoLeaf(LeafPage *page, const KeyType &key, const ValueType &value) -> bool;
+
+  /* Returns a pointer to the smallest key >= the provided key */
+  auto LowerBoundLeaf(LeafPage *page, const KeyType &key) -> std::pair<KeyType, ValueType> *;
+
+  auto InsertIntoInternal(InternalPage *page, const KeyType &key, page_id_t child_page_id) -> bool;
+
+  /* Returns a pointer to the smallest key >= the provided key */
+  auto LowerBoundInternal(InternalPage *page, const KeyType &key) -> std::pair<KeyType, page_id_t> *;
+
+  auto IsOverFlowed(BPlusTreePage *page) -> bool;
+
+  auto IsUnderFlowed(BPlusTreePage *page) -> bool;
+
+  void RemoveInternal(page_id_t page_id, const KeyType &key, Transaction *transaction = nullptr);
+
+  auto RemoveFromLeaf(LeafPage *page, const KeyType &key) -> bool;
 
   void UpdateRootPageId(int insert_record = 0);
 
