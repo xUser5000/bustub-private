@@ -15,14 +15,15 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
       buffer_pool_manager_(buffer_pool_manager),
       comparator_(comparator),
       leaf_max_size_(leaf_max_size),
-      internal_max_size_(internal_max_size),
-      cur_size_(0) {}
+      internal_max_size_(internal_max_size) {}
 
 /*
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return cur_size_ == 0; }
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
+  return root_page_id_ == INVALID_PAGE_ID;
+}
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -33,9 +34,12 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return cur_size_ == 0; }
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
-  if (root_page_id_ == INVALID_PAGE_ID) {
+  root_page_id_guard_.lock_shared();
+  if (IsEmpty()) {
+    root_page_id_guard_.unlock_shared();
     return false;
   }
+  std::shared_lock<std::shared_mutex> lock(global_latch_);
   return GetValueInternal(root_page_id_, key, result, transaction);
 }
 
@@ -43,7 +47,8 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPlusTree<KeyType, ValueType, KeyComparator>::GetValueInternal(page_id_t page_id, const KeyType &key,
                                                                     std::vector<ValueType> *result,
                                                                     Transaction *transaction) -> bool {
-  auto *cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id));
+  if (page_id == root_page_id_) { root_page_id_guard_.unlock_shared(); }
+  auto *cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
   if (cur_generic_page->IsLeafPage()) {
     auto *cur_leaf_page = reinterpret_cast<LeafPage *>(cur_generic_page);
     auto node = LowerBoundLeaf(cur_leaf_page, key);
@@ -75,19 +80,21 @@ auto BPlusTree<KeyType, ValueType, KeyComparator>::GetValueInternal(page_id_t pa
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
+  root_page_id_guard_.lock();
   if (root_page_id_ == INVALID_PAGE_ID) {
     auto root_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
     root_page->Init(root_page_id_, INVALID_PAGE_ID, leaf_max_size_);
     UpdateRootPageId(true);
     buffer_pool_manager_->UnpinPage(root_page_id_, true);
   }
-  bool res = InsertInternal(root_page_id_, key, value, transaction);
-  return res;
+  std::scoped_lock<std::shared_mutex> global_lock(global_latch_);
+  return InsertInternal(root_page_id_, key, value, transaction);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value,
                                     Transaction *transaction) -> bool {
+  if (page_id == root_page_id_) { root_page_id_guard_.unlock(); }
   auto cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
   auto cur_leaf_page = reinterpret_cast<LeafPage *>(cur_generic_page);
   auto cur_internal_page = reinterpret_cast<InternalPage *>(cur_generic_page);
@@ -97,7 +104,6 @@ auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const
       buffer_pool_manager_->UnpinPage(page_id, false);
       return false;
     }
-    cur_size_++;
   } else {
     auto node = LowerBoundInternal(cur_internal_page, key);
     if (!InsertInternal(node->second, key, value, transaction)) {
@@ -188,21 +194,24 @@ auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
-  if (cur_size_ == 0) {
+  root_page_id_guard_.lock();
+  if (IsEmpty()) {
+    root_page_id_guard_.unlock();
     return;
   }
+  std::unique_lock<std::shared_mutex> global_lock(global_latch_);
   RemoveInternal(root_page_id_, key, transaction);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternal(page_id_t page_id, const KeyType &key,
                                                                   Transaction *transaction) {
+  if (page_id == root_page_id_) { root_page_id_guard_.unlock(); }
   auto cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
   auto cur_leaf_page = static_cast<LeafPage *>(cur_generic_page);
   auto cur_internal_page = static_cast<InternalPage *>(cur_generic_page);
   if (cur_generic_page->IsLeafPage()) {
     if (RemoveFromLeaf(cur_leaf_page, key)) {
-      cur_size_--;
     } else {
       buffer_pool_manager_->UnpinPage(page_id, false);
       return;
@@ -364,6 +373,7 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternal(page_id_t page
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  std::unique_lock<std::shared_mutex> lock(global_latch_);
   if (root_page_id_ == INVALID_PAGE_ID) {
     return INDEXITERATOR_TYPE(buffer_pool_manager_, INVALID_PAGE_ID, 0);
   }
@@ -391,6 +401,7 @@ auto BPlusTree<KeyType, ValueType, KeyComparator>::BeginInternal(page_id_t cur_p
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  std::unique_lock<std::shared_mutex> lock(global_latch_);
   if (root_page_id_ == INVALID_PAGE_ID) {
     return INDEXITERATOR_TYPE(buffer_pool_manager_, INVALID_PAGE_ID, 0);
   }

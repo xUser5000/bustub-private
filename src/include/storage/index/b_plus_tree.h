@@ -117,7 +117,8 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
-  int cur_size_;
+  std::shared_mutex root_page_id_guard_;
+  std::shared_mutex global_latch_;
 };
 
 }  // namespace bustub
