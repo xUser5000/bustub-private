@@ -81,23 +81,7 @@ class BPlusTree {
 
   auto InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value, Transaction *transaction) -> bool;
 
-  auto InsertIntoLeaf(LeafPage *page, const KeyType &key, const ValueType &value) -> bool;
-
-  /* Returns a pointer to the smallest key >= the provided key */
-  auto LowerBoundLeaf(LeafPage *page, const KeyType &key) -> std::pair<KeyType, ValueType> *;
-
-  auto InsertIntoInternal(InternalPage *page, const KeyType &key, page_id_t child_page_id) -> bool;
-
-  /* Returns a pointer to the smallest key >= the provided key */
-  auto LowerBoundInternal(InternalPage *page, const KeyType &key) -> std::pair<KeyType, page_id_t> *;
-
-  auto IsOverFlowed(BPlusTreePage *page) -> bool;
-
-  auto IsUnderFlowed(BPlusTreePage *page) -> bool;
-
   void RemoveInternal(page_id_t page_id, const KeyType &key, Transaction *transaction = nullptr);
-
-  auto RemoveFromLeaf(LeafPage *page, const KeyType &key) -> bool;
 
   auto BeginInternal(page_id_t cur_page_id) -> INDEXITERATOR_TYPE;
 

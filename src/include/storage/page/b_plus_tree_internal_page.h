@@ -43,6 +43,10 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto ValueAt(int index) const -> ValueType;
   auto NodeAt(int index) -> MappingType *;
 
+  void Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator);
+  auto LowerBound(const KeyType &key, const KeyComparator &comparator) -> int;
+  void Remove(int index);
+
  private:
   // Flexible array member for page data.
   MappingType array_[1];

@@ -55,6 +55,52 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType { return arra
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::NodeAt(int index) -> MappingType * { return array_ + index; }
 
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::Insert(const KeyType &key, const ValueType &value,
+                                                                  const KeyComparator &comparator) -> bool {
+  int index;
+  for (index = 0; index < GetSize(); index++) {
+    if (comparator(key, KeyAt(index)) == 0) {
+      return false;
+    }
+    if (comparator(key, KeyAt(index)) < 0) {
+      break;
+    }
+  }
+  for (int i = GetSize(); i > index; i--) {
+    array_[i] = array_[i - 1];
+  }
+  array_[index] = std::make_pair(key, value);
+  IncreaseSize(1);
+  return true;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::LowerBound(const KeyType &key,
+                                                                      const KeyComparator &comparator) -> int {
+  for (int i = GetSize() - 1; i >= 0; i--) {
+    auto *cur_node = NodeAt(i);
+    if (comparator(key, cur_node->first) >= 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::Remove(const KeyType &key, const KeyComparator &comparator)
+    -> bool {
+  int index = LowerBound(key, comparator);
+  if (index == -1) {
+    return false;
+  }
+  for (int i = index; i < GetSize() - 1; i++) {
+    array_[i] = array_[i + 1];
+  }
+  IncreaseSize(-1);
+  return true;
+}
+
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;
 template class BPlusTreeLeafPage<GenericKey<16>, RID, GenericComparator<16>>;

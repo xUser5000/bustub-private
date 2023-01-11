@@ -59,12 +59,21 @@ void BPlusTreePage::SetPageId(page_id_t page_id) { page_id_ = page_id; }
 void BPlusTreePage::SetLSN(lsn_t lsn) { lsn_ = lsn; }
 
 auto BPlusTreePage::IsSafeForInsertion() -> bool {
-  if (IsLeafPage()) { return GetSize() + 1 < GetMaxSize(); }
+  if (IsLeafPage()) {
+    return GetSize() + 1 < GetMaxSize();
+  }
   return GetSize() + 1 <= GetMaxSize();
 }
 
-auto BPlusTreePage::IsSafeForDeletion() -> bool {
-  return GetSize() - 1 >= GetMinSize();
+auto BPlusTreePage::IsSafeForDeletion() -> bool { return GetSize() - 1 >= GetMinSize(); }
+
+auto BPlusTreePage::IsOverFlowed() const -> bool {
+  if (IsLeafPage()) {
+    return GetSize() == GetMaxSize();
+  }
+  return GetSize() > GetMaxSize();
 }
+
+auto BPlusTreePage::IsUnderFlowed() const -> bool { return GetSize() < GetMinSize(); }
 
 }  // namespace bustub

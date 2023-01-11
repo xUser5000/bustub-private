@@ -62,6 +62,8 @@ class BPlusTreePage {
 
   auto IsSafeForInsertion() -> bool;
   auto IsSafeForDeletion() -> bool;
+  auto IsOverFlowed() const -> bool;
+  auto IsUnderFlowed() const -> bool;
 
   void SetLSN(lsn_t lsn = INVALID_LSN);
 

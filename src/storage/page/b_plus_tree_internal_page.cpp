@@ -52,6 +52,41 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { ret
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::NodeAt(int index) -> std::pair<KeyType, ValueType> * { return array_ + index; }
 
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Insert(const KeyType &key, const ValueType &value,
+                                                                      const KeyComparator &comparator) {
+  int index;
+  for (index = GetSize() - 1; index >= 1; index--) {
+    if (comparator(key, NodeAt(index)->first) >= 0) {
+      break;
+    }
+  }
+
+  for (int i = GetSize(); i > index + 1; i--) {
+    array_[i] = array_[i - 1];
+  }
+  array_[index + 1] = std::make_pair(key, value);
+  IncreaseSize(1);
+}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::LowerBound(const KeyType &key,
+                                                                          const KeyComparator &comparator) -> int {
+  int index;
+  for (index = GetSize() - 1; index >= 1; index--) {
+    if (comparator(key, array_[index].first) >= 0) {
+      break;
+    }
+  }
+  return index;
+}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Remove(int index) {
+  for (int i = index; i < GetSize() - 1; i++) {
+    array_[i] = array_[i + 1];
+  }
+  IncreaseSize(-1);
+}
+
 // valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;
 template class BPlusTreeInternalPage<GenericKey<8>, page_id_t, GenericComparator<8>>;

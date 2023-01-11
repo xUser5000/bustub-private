@@ -21,9 +21,7 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
-  return root_page_id_ == INVALID_PAGE_ID;
-}
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return root_page_id_ == INVALID_PAGE_ID; }
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -47,11 +45,14 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPlusTree<KeyType, ValueType, KeyComparator>::GetValueInternal(page_id_t page_id, const KeyType &key,
                                                                     std::vector<ValueType> *result,
                                                                     Transaction *transaction) -> bool {
-  if (page_id == root_page_id_) { root_page_id_guard_.unlock_shared(); }
+  if (page_id == root_page_id_) {
+    root_page_id_guard_.unlock_shared();
+  }
   auto *cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
   if (cur_generic_page->IsLeafPage()) {
     auto *cur_leaf_page = reinterpret_cast<LeafPage *>(cur_generic_page);
-    auto node = LowerBoundLeaf(cur_leaf_page, key);
+    int idx = cur_leaf_page->LowerBound(key, comparator_);
+    auto node = cur_leaf_page->NodeAt(idx);
     bool ret;
     if (node != nullptr && comparator_(key, node->first) == 0) {
       result->push_back(node->second);
@@ -63,7 +64,8 @@ auto BPlusTree<KeyType, ValueType, KeyComparator>::GetValueInternal(page_id_t pa
     return ret;
   }
   auto cur_internal_page = reinterpret_cast<InternalPage *>(cur_generic_page);
-  auto node = LowerBoundInternal(cur_internal_page, key);
+  int idx = cur_internal_page->LowerBound(key, comparator_);
+  auto node = cur_internal_page->NodeAt(idx);
   buffer_pool_manager_->UnpinPage(page_id, false);
   return GetValueInternal(node->second, key, result, transaction);
 }
@@ -94,18 +96,20 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const ValueType &value,
                                     Transaction *transaction) -> bool {
-  if (page_id == root_page_id_) { root_page_id_guard_.unlock(); }
+  if (page_id == root_page_id_) {
+    root_page_id_guard_.unlock();
+  }
   auto cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
   auto cur_leaf_page = reinterpret_cast<LeafPage *>(cur_generic_page);
   auto cur_internal_page = reinterpret_cast<InternalPage *>(cur_generic_page);
   if (cur_generic_page->IsLeafPage()) {
-    bool is_inserted = InsertIntoLeaf(cur_leaf_page, key, value);
+    bool is_inserted = cur_leaf_page->Insert(key, value, comparator_);
     if (!is_inserted) {
       buffer_pool_manager_->UnpinPage(page_id, false);
       return false;
     }
   } else {
-    auto node = LowerBoundInternal(cur_internal_page, key);
+    auto node = cur_internal_page->NodeAt(cur_internal_page->LowerBound(key, comparator_));
     if (!InsertInternal(node->second, key, value, transaction)) {
       buffer_pool_manager_->UnpinPage(page_id, false);
       return false;
@@ -113,7 +117,7 @@ auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const
   }
 
   /* If I don't overflow, do nothing */
-  if (!IsOverFlowed(cur_generic_page)) {
+  if (!cur_generic_page->IsOverFlowed()) {
     buffer_pool_manager_->UnpinPage(page_id, true);
     return true;
   }
@@ -154,7 +158,7 @@ auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const
     sibling_leaf_page->SetSize(cur_leaf_page->GetSize() - cur_leaf_page->GetMinSize());
     cur_leaf_page->SetSize(cur_leaf_page->GetMinSize());
 
-    InsertIntoInternal(parent_page, sibling_leaf_page->NodeAt(0)->first, sibling_leaf_page->GetPageId());
+    parent_page->Insert(sibling_leaf_page->NodeAt(0)->first, sibling_leaf_page->GetPageId(), comparator_);
     cur_leaf_page->SetNextPageId(sibling_generic_page->GetPageId());
   } else {
     auto sibling_internal_page = static_cast<InternalPage *>(sibling_generic_page);
@@ -173,8 +177,7 @@ auto BPLUSTREE_TYPE::InsertInternal(page_id_t page_id, const KeyType &key, const
       child_generic_page->SetParentPageId(sibling_internal_page->GetPageId());
       buffer_pool_manager_->UnpinPage(child_generic_page->GetPageId(), true);
     }
-
-    InsertIntoInternal(parent_page, sibling_internal_page->NodeAt(0)->first, sibling_internal_page->GetPageId());
+    parent_page->Insert(sibling_internal_page->NodeAt(0)->first, sibling_internal_page->GetPageId(), comparator_);
   }
 
   buffer_pool_manager_->UnpinPage(page_id, true);
@@ -206,22 +209,24 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternal(page_id_t page_id, const KeyType &key,
                                                                   Transaction *transaction) {
-  if (page_id == root_page_id_) { root_page_id_guard_.unlock(); }
+  if (page_id == root_page_id_) {
+    root_page_id_guard_.unlock();
+  }
   auto cur_generic_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
   auto cur_leaf_page = static_cast<LeafPage *>(cur_generic_page);
   auto cur_internal_page = static_cast<InternalPage *>(cur_generic_page);
   if (cur_generic_page->IsLeafPage()) {
-    if (RemoveFromLeaf(cur_leaf_page, key)) {
-    } else {
+    if (cur_leaf_page->Remove(key, comparator_)) {
       buffer_pool_manager_->UnpinPage(page_id, false);
       return;
     }
   } else {
-    auto node = LowerBoundInternal(cur_internal_page, key);
+    int idx = cur_internal_page->LowerBound(key, comparator_);
+    auto node = cur_internal_page->NodeAt(idx);
     RemoveInternal(node->second, key, transaction);
   }
 
-  if (root_page_id_ == page_id || !IsUnderFlowed(cur_generic_page)) {
+  if (root_page_id_ == page_id || !cur_generic_page->IsUnderFlowed()) {
     buffer_pool_manager_->UnpinPage(page_id, true);
     return;
   }
@@ -246,13 +251,13 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternal(page_id_t page
     if (left_sibling_generic_page->GetSize() > left_sibling_generic_page->GetMinSize()) {
       if (cur_generic_page->IsLeafPage()) {
         auto left_sibling_leaf_page = static_cast<LeafPage *>(left_sibling_generic_page);
-        InsertIntoLeaf(cur_leaf_page, left_sibling_leaf_page->NodeAt(left_sibling_size - 1)->first,
-                       left_sibling_leaf_page->NodeAt(left_sibling_size - 1)->second);
+        cur_leaf_page->Insert(left_sibling_leaf_page->NodeAt(left_sibling_size - 1)->first,
+                              left_sibling_leaf_page->NodeAt(left_sibling_size - 1)->second, comparator_);
         parent_page->NodeAt(index)->first = cur_leaf_page->NodeAt(0)->first;
       } else {
         auto left_sibling_internal_page = static_cast<InternalPage *>(left_sibling_generic_page);
-        InsertIntoInternal(cur_internal_page, left_sibling_internal_page->NodeAt(left_sibling_size - 1)->first,
-                           left_sibling_internal_page->NodeAt(left_sibling_size - 1)->second);
+        cur_internal_page->Insert(left_sibling_internal_page->NodeAt(left_sibling_size - 1)->first,
+                                  left_sibling_internal_page->NodeAt(left_sibling_size - 1)->second, comparator_);
         parent_page->NodeAt(index)->first = cur_internal_page->NodeAt(0)->first;
 
         page_id_t child_page_id = cur_internal_page->NodeAt(0)->second;
@@ -278,14 +283,14 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternal(page_id_t page
     if (right_sibling_generic_page->GetSize() > right_sibling_generic_page->GetMinSize()) {
       if (cur_generic_page->IsLeafPage()) {
         auto right_sibling_leaf_page = static_cast<LeafPage *>(right_sibling_generic_page);
-        InsertIntoLeaf(cur_leaf_page, right_sibling_leaf_page->NodeAt(0)->first,
-                       right_sibling_leaf_page->NodeAt(0)->second);
-        RemoveFromLeaf(right_sibling_leaf_page, right_sibling_leaf_page->NodeAt(0)->first);
+        cur_leaf_page->Insert(right_sibling_leaf_page->NodeAt(0)->first, right_sibling_leaf_page->NodeAt(0)->second,
+                              comparator_);
+        right_sibling_leaf_page->Remove(right_sibling_leaf_page->NodeAt(0)->first, comparator_);
         parent_page->NodeAt(index + 1)->first = right_sibling_leaf_page->NodeAt(0)->first;
       } else {
         auto right_sibling_internal_page = static_cast<InternalPage *>(right_sibling_generic_page);
-        InsertIntoInternal(cur_internal_page, right_sibling_internal_page->NodeAt(0)->first,
-                           right_sibling_internal_page->NodeAt(0)->second);
+        cur_internal_page->Insert(right_sibling_internal_page->NodeAt(0)->first,
+                                  right_sibling_internal_page->NodeAt(0)->second, comparator_);
         for (int i = 0; i < right_sibling_size - 1; i++) {
           right_sibling_internal_page->NodeAt(i)->first = right_sibling_internal_page->NodeAt(i + 1)->first;
           right_sibling_internal_page->NodeAt(i)->second = right_sibling_internal_page->NodeAt(i + 1)->second;
@@ -335,15 +340,15 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternal(page_id_t page
     auto left_leaf_page = static_cast<LeafPage *>(left_generic_page);
     auto right_leaf_page = static_cast<LeafPage *>(right_generic_page);
     for (int i = 0; i < right_leaf_page->GetSize(); i++) {
-      InsertIntoLeaf(left_leaf_page, right_leaf_page->NodeAt(i)->first, right_leaf_page->NodeAt(i)->second);
+      left_leaf_page->Insert(right_leaf_page->NodeAt(i)->first, right_leaf_page->NodeAt(i)->second, comparator_);
     }
     left_leaf_page->SetNextPageId(right_leaf_page->GetNextPageId());
   } else {
     auto left_internal_page = static_cast<InternalPage *>(left_generic_page);
     auto right_internal_page = static_cast<InternalPage *>(right_generic_page);
     for (int i = 0; i < right_internal_page->GetSize(); i++) {
-      InsertIntoInternal(left_internal_page, right_internal_page->NodeAt(i)->first,
-                         right_internal_page->NodeAt(i)->second);
+      left_internal_page->Insert(right_internal_page->NodeAt(i)->first, right_internal_page->NodeAt(i)->second,
+                                 comparator_);
     }
   }
 
@@ -428,7 +433,8 @@ auto BPlusTree<KeyType, ValueType, KeyComparator>::BeginInternal(page_id_t cur_p
     return INDEXITERATOR_TYPE(buffer_pool_manager_, INVALID_PAGE_ID, 0);
   }
   auto cur_internal_page = static_cast<InternalPage *>(cur_generic_page);
-  page_id_t next_page_id = LowerBoundInternal(cur_internal_page, key)->second;
+  int idx = cur_internal_page->LowerBound(key, comparator_);
+  page_id_t next_page_id = cur_internal_page->NodeAt(idx)->second;
   buffer_pool_manager_->UnpinPage(cur_page_id, false);
   return BeginInternal(next_page_id, key);
 }
@@ -452,110 +458,6 @@ auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return root_page_id_; }
 /*****************************************************************************
  * UTILITIES AND DEBUG
  *****************************************************************************/
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::InsertIntoLeaf(BPlusTree::LeafPage *page, const KeyType &key,
-                                                                  const ValueType &value) -> bool {
-  /* Find the proper location to insert */
-  int index;
-  for (index = 0; index < page->GetSize(); index++) {
-    /*
-     * If the key already exists, return false.
-     * We don't want duplicate keys
-     * */
-    if (comparator_(key, page->KeyAt(index)) == 0) {
-      return false;
-    }
-
-    if (comparator_(key, page->KeyAt(index)) < 0) {
-      break;
-    }
-  }
-  /* Shift all the elements after index one step to the right */
-  for (int i = page->GetSize(); i > index; i--) {
-    page->NodeAt(i)->first = page->NodeAt(i - 1)->first;
-    page->NodeAt(i)->second = page->NodeAt(i - 1)->second;
-  }
-  /* Put the KV pair into index and increment the size */
-  page->NodeAt(index)->first = key;
-  page->NodeAt(index)->second = value;
-  page->IncreaseSize(1);
-  return true;
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::LowerBoundLeaf(BPlusTree::LeafPage *page, const KeyType &key)
-    -> std::pair<KeyType, ValueType> * {
-  for (int i = page->GetSize() - 1; i >= 0; i--) {
-    std::pair<KeyType, ValueType> *cur_node = page->NodeAt(i);
-    if (comparator_(key, cur_node->first) >= 0) {
-      return cur_node;
-    }
-  }
-  return nullptr;
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::InsertIntoInternal(BPlusTree::InternalPage *page, const KeyType &key,
-                                                                      page_id_t child_page_id) -> bool {
-  int index;
-  for (index = page->GetSize() - 1; index >= 1; index--) {
-    if (comparator_(key, page->NodeAt(index)->first) >= 0) {
-      break;
-    }
-  }
-  for (int i = page->GetSize(); i > index + 1; i--) {
-    page->NodeAt(i)->first = page->NodeAt(i - 1)->first;
-    page->NodeAt(i)->second = page->NodeAt(i - 1)->second;
-  }
-  page->NodeAt(index + 1)->first = key;
-  page->NodeAt(index + 1)->second = child_page_id;
-  page->IncreaseSize(1);
-  return true;
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::LowerBoundInternal(BPlusTree::InternalPage *page, const KeyType &key)
-    -> std::pair<KeyType, page_id_t> * {
-  int index;
-  for (index = page->GetSize() - 1; index >= 1; index--) {
-    if (comparator_(key, page->NodeAt(index)->first) >= 0) {
-      break;
-    }
-  }
-  return page->NodeAt(index);
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::IsOverFlowed(BPlusTreePage *page) -> bool {
-  return (page->IsLeafPage() && page->GetSize() == page->GetMaxSize()) ||
-         (!page->IsLeafPage() && page->GetSize() == page->GetMaxSize() + 1);
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::IsUnderFlowed(BPlusTreePage *page) -> bool {
-  return page->GetSize() < page->GetMinSize();
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
-auto BPlusTree<KeyType, ValueType, KeyComparator>::RemoveFromLeaf(BPlusTree::LeafPage *page, const KeyType &key)
-    -> bool {
-  int index;
-  for (index = 0; index < page->GetSize(); index++) {
-    if (comparator_(key, page->NodeAt(index)->first) == 0) {
-      break;
-    }
-  }
-  if (index == page->GetSize()) {
-    return false;
-  }
-  for (int i = index; i < page->GetSize() - 1; i++) {
-    page->NodeAt(i)->first = page->NodeAt(i + 1)->first;
-    page->NodeAt(i)->second = page->NodeAt(i + 1)->second;
-  }
-  page->SetSize(page->GetSize() - 1);
-  return true;
-}
 
 /*
  * Update/Insert root page id in header page(where page_id = 0, header_page is
