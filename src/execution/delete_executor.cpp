@@ -40,7 +40,10 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   while (child_executor_->Next(&t, &r)) {
     heap->MarkDelete(r, exec_ctx_->GetTransaction());
     for (auto &i : indexes) {
-      i->index_->DeleteEntry(t, r, exec_ctx_->GetTransaction());
+      IndexMetadata *metadata = i->index_->GetMetadata();
+      Tuple key =
+          t.KeyFromTuple(child_executor_->GetOutputSchema(), *metadata->GetKeySchema(), metadata->GetKeyAttrs());
+      i->index_->DeleteEntry(key, r, exec_ctx_->GetTransaction());
     }
     tuples_count++;
   }

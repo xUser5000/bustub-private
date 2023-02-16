@@ -40,7 +40,10 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   while (child_executor_->Next(&t, &r)) {
     heap->InsertTuple(t, &r, exec_ctx_->GetTransaction());
     for (auto &i : indexes) {
-      i->index_->InsertEntry(t, r, exec_ctx_->GetTransaction());
+      IndexMetadata *metadata = i->index_->GetMetadata();
+      Tuple key =
+          t.KeyFromTuple(child_executor_->GetOutputSchema(), *metadata->GetKeySchema(), metadata->GetKeyAttrs());
+      i->index_->InsertEntry(key, r, exec_ctx_->GetTransaction());
     }
     tuples_count++;
   }
