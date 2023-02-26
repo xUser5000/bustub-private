@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -53,8 +54,17 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
+  auto MergeTuples(const Tuple &left_tuple, const Schema &left_schema, const Tuple &right_tuple,
+                   const Schema &right_schema) -> Tuple;
+
+  auto GetNullTuple(const Schema &s) -> Tuple;
+
   /** The NestedLoopJoin plan node to be executed. */
   const NestedLoopJoinPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> left_executor_;
+  std::unique_ptr<AbstractExecutor> right_executor_;
+  std::vector<Tuple> result_set_;
+  std::vector<Tuple>::iterator iterator_;
 };
 
 }  // namespace bustub
