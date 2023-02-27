@@ -76,6 +76,7 @@ class SimpleAggregationHashTable {
         continue;
       }
       switch (agg_types_[i]) {
+
         case AggregationType::CountStarAggregate:
           result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
           break;
